@@ -1,0 +1,98 @@
+---
+  title: "Getting Started with causalSenseCheck"
+  output: rmarkdown::html_vignette
+  vignette: >
+    %\VignetteIndexEntry{Getting Started with causalSenseCheck}
+    %\VignetteEngine{knitr::rmarkdown}
+    %\VignetteEncoding{UTF-8}
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4
+)
+```
+
+```{r setup}
+library(causalSenseCheck)
+library(ggplot2)
+```
+
+## Overview
+
+This vignette shows a minimal end-to-end workflow using **causalSenseCheck**: fit multiple estimators, run placebo/sensitivity checks, and visualize results.
+
+## Data
+
+The package ships with a small simulated dataset `sim_data` containing an outcome `y`, a binary treatment `d`, covariates `x1`, `x2`, and a panel structure (`id`, `time`).
+
+```{r}
+data(sim_data, package = "causalSenseCheck")
+head(sim_data)
+```
+
+## Fit Models
+
+We estimate average treatment effects with OLS, a doubly robust (AIPW) estimator, and TWFE Difference-in-Differences via `fixest`.
+
+```{r}
+fit <- csc_fit(
+  sim_data,
+  y = "y",
+  d = "d",
+  x = c("x1","x2"),
+  estimators = c("ols","dr","did"),
+  did = list(id = "id", time = "time")
+)
+fit
+```
+
+## Diagnostics
+
+Run placebo tests and (optionally) sensitivity analysis.
+
+```{r}
+diag <- csc_diagnose(
+  fit,
+  placebo = c("random_assign", "lead_treatment")
+)
+```
+
+### Compare Estimators
+
+```{r}
+autoplot(diag, "compare")
+```
+
+### Placebo Distribution
+
+```{r}
+autoplot(diag, "placebo")
+```
+
+### Optional: Sensemakr Sensitivity
+
+If the `sensemakr` package is installed, you can enable additional sensitivity diagnostics.
+
+```{r eval=FALSE}
+# install.packages("sensemakr")
+diag2 <- csc_diagnose(fit, sensitivity = "sensemakr")
+```
+
+## Reproducible Report
+
+Generate an HTML report (requires `rmarkdown`).
+
+```{r eval=FALSE}
+# install.packages("rmarkdown")
+csc_report(fit, diag, output_file = "csc_report.html", open = TRUE)
+```
+
+## Session Info
+
+```{r}
+sessionInfo()
+```

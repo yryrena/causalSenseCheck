@@ -1,0 +1,13 @@
+# RStudio
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+
+# macOS
+.DS_Store
+
+# Build artifacts
+/doc/
+/Meta/
+README.html
