@@ -12,11 +12,11 @@
 coverage](https://codecov.io/gh/yryrena/causalSenseCheck/branch/main/graph/badge.svg)](https://app.codecov.io/gh/yryrena/causalSenseCheck)
 
 ```mermaid
-flowchart LR
-    A[1_load_data - Load Data] --> B[2_fit_models - Fit Causal Estimators]
-    B --> C[3_diagnostics - Run Placebo & Sensitivity Checks]
-    C --> D[4_visualize - Visualize Estimates & Robustness]
-    D --> E[5_report - Generate HTML Report csc_report]
+flowchart LR 
+    A[Load Data] --> B[Fit Causal Estimators]
+    B --> C[Run Placebo & Sensitivity Checks]
+    C --> D[Visualize Estimates & Robustness]
+    D --> E[Generate HTML Report]
 
     style A fill:#f2f8f2,stroke:#444,stroke-width:1px
     style B fill:#dde6d4,stroke:#444,stroke-width:1px
