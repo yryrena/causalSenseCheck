@@ -11,6 +11,21 @@
 [![Codecov test
 coverage](https://codecov.io/gh/yryrena/causalSenseCheck/branch/main/graph/badge.svg)](https://app.codecov.io/gh/yryrena/causalSenseCheck)
 
+```mermaid
+flowchart LR
+    A[1_load_data - Load or Simulate Data] --> B[2_fit_models - Fit Causal Estimators]
+    B --> C[3_diagnostics - Run Placebo & Sensitivity Checks]
+    C --> D[4_visualize - Visualize Estimates & Robustness]
+    D --> E[5_report - Generate HTML Report csc_report]
+
+    style A fill:#8da68d,stroke:#444,stroke-width:1px
+    style B fill:#a3b899,stroke:#444,stroke-width:1px
+    style C fill:#a3c1ad,stroke:#444,stroke-width:1px
+    style D fill:#8f9779,stroke:#444,stroke-width:1px
+    style E fill:#dde6d4,stroke:#444,stroke-width:1px
+```
+
+
 ## Overview
 
 **causalSenseCheck** provides quick diagnostics and robustness checks
