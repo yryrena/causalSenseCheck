@@ -21,54 +21,42 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@v2
 
-      ## install package dependencies, INCLUDING Suggests,
-      ## and also install covr explicitly 
+      ## install dependencies (Imports + Suggests) AND covr
       - name: Install dependencies
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::covr
           needs: coverage
 
-      ## show which heavy Suggests actually installed
+      ## optional debug: see which heavy Suggests got installed
       - name: Debug installed packages
         run: |
           Rscript -e 'print(sessionInfo()); pkgs <- c("grf","AER","fixest","ggplot2","rmarkdown"); print(pkgs); print(sapply(pkgs, requireNamespace, quietly=TRUE))'
 
-      ## run tests, compute coverage, upload to Codecov
-      - name: Run tests & compute coverage
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+      ## run tests, compute coverage, and write Cobertura XML report to coverage.xml
+      - name: Run tests & compute coverage (generate XML)
         run: |
           Rscript -e '
-            # 1. run tests + coverage
             cov <- covr::package_coverage()
             print(cov)
-
-            # 2. parse repo owner/name (e.g. "yryrena/causalSenseCheck")
-            repo_full <- Sys.getenv("GITHUB_REPOSITORY")
-            parts <- strsplit(repo_full, "/", fixed = TRUE)[[1]]
-            owner <- parts[1]
-            repo_name <- parts[2]
-
-            # 3. explicit upload to codecov
-            covr::codecov(
-              coverage = cov,
-              quiet = FALSE,
-              token = Sys.getenv("CODECOV_TOKEN"),
-              commit = Sys.getenv("GITHUB_SHA"),
-              branch = Sys.getenv("GITHUB_REF_NAME"),
-              slug = repo_full,
-              owner = owner,
-              repo = repo_name
-            )
+            # Write coverage in Cobertura XML format
+            covr::cobertura(cov, file = "coverage.xml")
           '
-
-      - name: Upload coverage report artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: covr-report
-          path: covr.Rout*
+ 
+      - name: Upload coverage to Codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        run: |
+          ## download Codecov uploader (bash version)
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          ## upload the XML report 
+          ./codecov \
+            -f coverage.xml \
+            -n "gha-${GITHUB_SHA}" \
+            -F unittests \
+            -s . \
+            -R "${GITHUB_WORKSPACE}" \
+            -t "${CODECOV_TOKEN}" \
+            -B "${GITHUB_REF_NAME}" \
+            -C "${GITHUB_SHA}"
