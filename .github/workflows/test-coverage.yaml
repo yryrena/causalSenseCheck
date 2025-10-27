@@ -84,25 +84,23 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           ## download official Codecov uploader
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
 
-          ## derive slug (owner/repo), e.g. "yryrena/causalSenseCheck"
+          ## derive slug (owner/repo) 
           SLUG="${GITHUB_REPOSITORY}"
 
-          ## call uploader with explicit slug, branch, commit, and coverage file
-          ## note: we still pass -t just in case, but with GitHub App active
-          ## Codecov can often work even if token is ignored.
+          ## force-assign branch to "main" so Codecov updates main dashboard
           ./codecov \
             -f coverage.lcov \
+            --slug "${SLUG}" \
+            --branch "main" \
+            --commit "${GITHUB_SHA}" \
+            --token "${CODECOV_TOKEN}" \
             -n "gha-${GITHUB_SHA}" \
             -F unittests \
-            -B "${GITHUB_REF_NAME}" \
-            -C "${GITHUB_SHA}" \
-            -t "${CODECOV_TOKEN}" \
-            --slug "${SLUG}"
+            -v
 
