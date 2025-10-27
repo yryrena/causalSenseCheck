@@ -82,7 +82,6 @@ jobs:
       ## upload coverage.lcov to Codecov using their official uploader
       - name: Upload coverage to Codecov
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
@@ -93,14 +92,16 @@ jobs:
           ## derive slug (owner/repo) 
           SLUG="${GITHUB_REPOSITORY}"
 
-          ## force-assign branch to "main" so Codecov updates main dashboard
+          ## force-assign branch to main for now
+          BRANCH="main"
+
+          ## call uploader WITHOUT --token because your org is in tokenless GitHub App mode
           ./codecov \
             -f coverage.lcov \
             --slug "${SLUG}" \
-            --branch "main" \
+            --branch "${BRANCH}" \
             --commit "${GITHUB_SHA}" \
-            --token "${CODECOV_TOKEN}" \
+            --env "git,github_actions" \
             -n "gha-${GITHUB_SHA}" \
             -F unittests \
             -v
-
