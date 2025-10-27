@@ -43,24 +43,32 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           Rscript -e '
-            ## 1. run tests + coverage
+            # 1. run tests + coverage
             cov <- covr::package_coverage()
             print(cov)
 
-            ## 2. parse repo owner/name (e.g. "yryrena/causalSenseCheck")
-            repo <- Sys.getenv("GITHUB_REPOSITORY")
-            parts <- strsplit(repo, "/", fixed = TRUE)[[1]]
+            # 2. parse repo owner/name (e.g. "yryrena/causalSenseCheck")
+            repo_full <- Sys.getenv("GITHUB_REPOSITORY")
+            parts <- strsplit(repo_full, "/", fixed = TRUE)[[1]]
             owner <- parts[1]
             repo_name <- parts[2]
 
-            ## 3. upload to Codecov with explicit metadata
+            # 3. explicit upload to codecov
             covr::codecov(
               coverage = cov,
               quiet = FALSE,
               token = Sys.getenv("CODECOV_TOKEN"),
               commit = Sys.getenv("GITHUB_SHA"),
               branch = Sys.getenv("GITHUB_REF_NAME"),
+              slug = repo_full,
               owner = owner,
               repo = repo_name
             )
-          ' 
+          '
+
+      - name: Upload coverage report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: covr-report
+          path: covr.Rout*
