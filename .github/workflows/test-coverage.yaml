@@ -25,8 +25,11 @@ jobs:
             any::testthat
           needs: coverage
       - name: Run tests & compute coverage
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         run: |
           Rscript -e 'cov <- covr::package_coverage(); print(cov); covr::codecov(coverage = cov, quiet = FALSE)'
+
       - name: Upload coverage report artifact
         if: always()
         uses: actions/upload-artifact@v4
