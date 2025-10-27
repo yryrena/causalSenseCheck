@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -19,13 +20,21 @@ jobs:
           use-public-rspm: true
 
       - uses: r-lib/actions/setup-pandoc@v2
- 
+
+      ## install package dependencies, INCLUDING Suggests,
+      ## and also install covr explicitly 
       - name: Install dependencies
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::covr
           needs: coverage
- 
+
+      ## show which heavy Suggests actually installed
+      - name: Debug installed packages
+        run: |
+          Rscript -e 'print(sessionInfo()); pkgs <- c("grf","AER","fixest","ggplot2","rmarkdown"); print(pkgs); print(sapply(pkgs, requireNamespace, quietly=TRUE))'
+
+      ## run tests, compute coverage, upload to Codecov
       - name: Run tests & compute coverage
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
@@ -34,15 +43,17 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           Rscript -e '
-            cov <- covr::package_coverage();
-            print(cov);
+            ## 1. run tests + coverage
+            cov <- covr::package_coverage()
+            print(cov)
 
-            # Parse repo owner/name from GITHUB_REPOSITORY ("owner/repo")
+            ## 2. parse repo owner/name (e.g. "yryrena/causalSenseCheck")
             repo <- Sys.getenv("GITHUB_REPOSITORY")
             parts <- strsplit(repo, "/", fixed = TRUE)[[1]]
             owner <- parts[1]
             repo_name <- parts[2]
 
+            ## 3. upload to Codecov with explicit metadata
             covr::codecov(
               coverage = cov,
               quiet = FALSE,
@@ -52,11 +63,4 @@ jobs:
               owner = owner,
               repo = repo_name
             )
-          '
-          
-      - name: Upload coverage report artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: covr-report
-          path: covr.Rout*
+          ' 
