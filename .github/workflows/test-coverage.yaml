@@ -33,14 +33,43 @@ jobs:
         run: |
           Rscript -e 'print(sessionInfo()); pkgs <- c("grf","AER","fixest","ggplot2","rmarkdown"); print(pkgs); print(sapply(pkgs, requireNamespace, quietly=TRUE))'
 
-      # Run tests, compute coverage, and write LCOV report to coverage.lcov
-      - name: Run tests & compute coverage (generate lcov)
+      # Run tests, compute coverage, and write LCOV report manually
+      - name: Run tests & compute coverage (generate lcov manually)
         run: |
           Rscript -e '
             cov <- covr::package_coverage()
             print(cov)
-            # write lcov format, widely supported
-            covr::to_lcov(cov, file = "coverage.lcov")
+
+            # helper to write lcov format from a covr coverage object
+            write_lcov <- function(cov, file = "coverage.lcov") {
+              con <- file(file, open = "wt")
+              on.exit(close(con), add = TRUE)
+
+              # cov is a covr "coverage" object, basically a list of per-file coverages
+              # each element has:
+              #   filename
+              #   coverage (named integer vector of hits, names = line numbers)
+              for (i in seq_along(cov)) {
+                x <- cov[[i]]
+                fn <- attr(x, "filename")
+                hits <- as.integer(x)
+                lines <- as.integer(names(x))
+
+                # start of file record
+                writeLines("TN:", con)
+                writeLines(paste0("SF:", fn), con)
+
+                # each covered/coverable line
+                for (j in seq_along(lines)) {
+                  writeLines(paste0("DA:", lines[j], ",", hits[j]), con)
+                }
+
+                # end of record
+                writeLines("end_of_record", con)
+              }
+            }
+
+            write_lcov(cov, file = "coverage.lcov")
           '
 
       # Upload coverage.lcov to Codecov using their official uploader
@@ -49,12 +78,10 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
 
-          # Feed Codecov our lcov file, along with metadata
           ./codecov \
             -f coverage.lcov \
             -n "gha-${GITHUB_SHA}" \
