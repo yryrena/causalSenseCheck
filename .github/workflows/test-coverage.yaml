@@ -29,9 +29,31 @@ jobs:
       - name: Run tests & compute coverage
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          Rscript -e 'cov <- covr::package_coverage(); print(cov); covr::codecov(coverage = cov, quiet = FALSE)'
- 
+          Rscript -e '
+            cov <- covr::package_coverage();
+            print(cov);
+
+            # Parse repo owner/name from GITHUB_REPOSITORY ("owner/repo")
+            repo <- Sys.getenv("GITHUB_REPOSITORY")
+            parts <- strsplit(repo, "/", fixed = TRUE)[[1]]
+            owner <- parts[1]
+            repo_name <- parts[2]
+
+            covr::codecov(
+              coverage = cov,
+              quiet = FALSE,
+              token = Sys.getenv("CODECOV_TOKEN"),
+              commit = Sys.getenv("GITHUB_SHA"),
+              branch = Sys.getenv("GITHUB_REF_NAME"),
+              owner = owner,
+              repo = repo_name
+            )
+          '
+          
       - name: Upload coverage report artifact
         if: always()
         uses: actions/upload-artifact@v4
