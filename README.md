@@ -41,7 +41,7 @@ streamlines that process by providing a single workflow for:
   interpret.
 
 The goal is to help researchers stress test causal claims before
-publication.
+publication.  
 
 ## Features
 
