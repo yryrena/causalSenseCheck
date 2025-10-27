@@ -21,38 +21,42 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@v2
 
-      ## install dependencies (Imports + Suggests) AND covr
+      # Install dependencies (Imports + Suggests) AND covr
       - name: Install dependencies
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: any::covr
           needs: coverage
 
-      ## optional debug: see which heavy Suggests got installed
+      # Optional debug: confirm Suggests installed
       - name: Debug installed packages
         run: |
           Rscript -e 'print(sessionInfo()); pkgs <- c("grf","AER","fixest","ggplot2","rmarkdown"); print(pkgs); print(sapply(pkgs, requireNamespace, quietly=TRUE))'
 
-      ## run tests, compute coverage, and write Cobertura XML report to coverage.xml
-      - name: Run tests & compute coverage (generate XML)
+      # Run tests, compute coverage, and write LCOV report to coverage.lcov
+      - name: Run tests & compute coverage (generate lcov)
         run: |
           Rscript -e '
             cov <- covr::package_coverage()
             print(cov)
-            # Write coverage in Cobertura XML format
-            covr::cobertura(cov, file = "coverage.xml")
+            # write lcov format, widely supported
+            covr::to_lcov(cov, file = "coverage.lcov")
           '
- 
+
+      # Upload coverage.lcov to Codecov using their official uploader
       - name: Upload coverage to Codecov
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          ## download Codecov uploader (bash version)
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
-          ## upload the XML report 
+
+          # Feed Codecov our lcov file, along with metadata
           ./codecov \
-            -f coverage.xml \
+            -f coverage.lcov \
             -n "gha-${GITHUB_SHA}" \
             -F unittests \
             -s . \
