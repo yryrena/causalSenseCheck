@@ -37,44 +37,62 @@ jobs:
       - name: Run tests & compute coverage (generate lcov manually)
         run: |
           Rscript -e '
-            ## 1. run coverage
+            # 1. run coverage
             cov <- covr::package_coverage()
             print(cov)
 
-            ## 2. convert coverage object to a data.frame
+            # 2. convert coverage object to a data.frame
             df <- as.data.frame(cov)
 
-            ## keep only rows with real line numbers
+            # keep only rows with real line numbers
             df <- df[!is.na(df$line), , drop = FALSE]
 
-            ## helper: normalize file paths so Codecov can map them to repo files
-            normalize_path_for_repo <- function(path_vec) { 
+            # helper: normalize file paths so Codecov can map them to repo files
+            normalize_path_for_repo <- function(path_vec) {
               sub("^.*causalSenseCheck/", "", path_vec)
             }
 
             df$filename_clean <- normalize_path_for_repo(df$filename)
 
-            ## 3. write LCOV with cleaned paths
+            # 3. write LCOV with cleaned paths + LF/LH summary per file
             write_lcov_df <- function(df, file = "coverage.lcov") {
               con <- file(file, open = "wt")
               on.exit(close(con), add = TRUE)
 
-              ## split by cleaned filename
+              ## split rows by filename
               files <- split(df, df$filename_clean)
 
               for (fn in names(files)) {
                 block <- files[[fn]]
 
-                ## start of record
+                ## make sure ints
+                block$line  <- as.integer(block$line)
+                block$value <- as.integer(block$value)
+
+                ## aggregate coverage per line:
+                ## some lines can appear more than once; take max hits
+                max_hits_per_line <- tapply(block$value, block$line, max)
+
+                ## LF: how many coverable lines in this file
+                line_nums <- as.integer(names(max_hits_per_line))
+                LF <- length(line_nums)
+
+                ## LH: how many of those lines had hits > 0
+                LH <- sum(max_hits_per_line > 0)
+
+                ## start record
                 writeLines("TN:", con)
                 writeLines(paste0("SF:", fn), con)
 
-                ## each executable line => DA:<line>,<hits>
-                for (k in seq_len(nrow(block))) {
-                  ln   <- as.integer(block$line[k])
-                  hits <- as.integer(block$value[k])
+                ## DA:<line>,<hits> for each executable line
+                for (ln in sort(line_nums)) {
+                  hits <- max_hits_per_line[[as.character(ln)]]
                   writeLines(paste0("DA:", ln, ",", hits), con)
                 }
+
+                ## summary lines that Codecov expects
+                writeLines(paste0("LF:", LF), con)
+                writeLines(paste0("LH:", LH), con)
 
                 ## end of record
                 writeLines("end_of_record", con)
@@ -83,6 +101,7 @@ jobs:
 
             write_lcov_df(df, file = "coverage.lcov")
           '
+
 
 
       ## upload coverage.lcov to Codecov using their official uploader
