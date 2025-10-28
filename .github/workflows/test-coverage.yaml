@@ -86,10 +86,8 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          ## download official Codecov uploader (linux amd64)
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
-          ls -l codecov
           ./codecov --version
 
           SLUG="${GITHUB_REPOSITORY}"
@@ -108,4 +106,3 @@ jobs:
             -F unittests \
             -v \
             -Z
-
