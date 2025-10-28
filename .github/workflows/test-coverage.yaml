@@ -82,6 +82,7 @@ jobs:
       ## upload coverage.lcov to Codecov using their official uploader
       - name: Upload coverage to Codecov
         env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
@@ -94,7 +95,7 @@ jobs:
           SLUG="${GITHUB_REPOSITORY}"
           BRANCH="main"
 
-          echo "Uploading coverage for slug=${SLUG}, branch=${BRANCH}, commit=${GITHUB_SHA} (tokenless)"
+          echo "Uploading coverage for slug=${SLUG}, branch=${BRANCH}, commit=${GITHUB_SHA} (token upload)"
 
           ./codecov \
             -f coverage.lcov \
@@ -102,7 +103,9 @@ jobs:
             --branch "${BRANCH}" \
             --commit "${GITHUB_SHA}" \
             --env "git,github_actions" \
+            --token "${CODECOV_TOKEN}" \
             -n "gha-${GITHUB_SHA}" \
             -F unittests \
             -v \
             -Z
+
