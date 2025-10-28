@@ -37,24 +37,30 @@ jobs:
       - name: Run tests & compute coverage (generate lcov manually)
         run: |
           Rscript -e '
-            # 1. run coverage
+            ## 1. run coverage
             cov <- covr::package_coverage()
             print(cov)
 
-            # 2. convert coverage object to a data.frame
-            #    expected cols: filename, line, value
+            ## 2. convert coverage object to a data.frame
             df <- as.data.frame(cov)
 
-            # safety check: drop rows with NA line numbers (sometimes appear for non-source lines)
+            ## keep only rows with real line numbers
             df <- df[!is.na(df$line), , drop = FALSE]
 
-            # 3. function to write LCOV format
+            ## helper: normalize file paths so Codecov can map them to repo files
+            normalize_path_for_repo <- function(path_vec) { 
+              sub("^.*causalSenseCheck/", "", path_vec)
+            }
+
+            df$filename_clean <- normalize_path_for_repo(df$filename)
+
+            ## 3. write LCOV with cleaned paths
             write_lcov_df <- function(df, file = "coverage.lcov") {
               con <- file(file, open = "wt")
               on.exit(close(con), add = TRUE)
 
-              ## split by filename
-              files <- split(df, df$filename)
+              ## split by cleaned filename
+              files <- split(df, df$filename_clean)
 
               for (fn in names(files)) {
                 block <- files[[fn]]
@@ -64,9 +70,8 @@ jobs:
                 writeLines(paste0("SF:", fn), con)
 
                 ## each executable line => DA:<line>,<hits>
-                ## make sure they are integers
                 for (k in seq_len(nrow(block))) {
-                  ln <- as.integer(block$line[k])
+                  ln   <- as.integer(block$line[k])
                   hits <- as.integer(block$value[k])
                   writeLines(paste0("DA:", ln, ",", hits), con)
                 }
@@ -78,6 +83,7 @@ jobs:
 
             write_lcov_df(df, file = "coverage.lcov")
           '
+
 
       ## upload coverage.lcov to Codecov using their official uploader
       - name: Upload coverage to Codecov
