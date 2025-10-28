@@ -48,9 +48,12 @@ jobs:
             df <- df[!is.na(df$line), , drop = FALSE]
 
             # helper: normalize file paths so Codecov can map them to repo files
-            normalize_path_for_repo <- function(path_vec) {
-              tolower(sub("^.*causalSenseCheck/", "", path_vec))
+            normalize_path_for_repo <- function(path_vec) { 
+              path_vec <- gsub("^.*causalSenseCheck/", "", path_vec)
+              path_vec <- gsub("^.*causalsensecheck/", "", path_vec)
+              tolower(path_vec)
             }
+
 
 
             df$filename_clean <- normalize_path_for_repo(df$filename)
