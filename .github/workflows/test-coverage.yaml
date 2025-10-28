@@ -82,11 +82,10 @@ jobs:
       ## upload coverage.lcov to Codecov using their official uploader
       - name: Upload coverage to Codecov
         env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          # download official Codecov uploader (linux amd64)
+          ## download official Codecov uploader (linux amd64)
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
           ls -l codecov
@@ -95,7 +94,7 @@ jobs:
           SLUG="${GITHUB_REPOSITORY}"
           BRANCH="main"
 
-          echo "Uploading coverage for slug=${SLUG}, branch=${BRANCH}, commit=${GITHUB_SHA}"
+          echo "Uploading coverage for slug=${SLUG}, branch=${BRANCH}, commit=${GITHUB_SHA} (tokenless)"
 
           ./codecov \
             -f coverage.lcov \
@@ -103,7 +102,6 @@ jobs:
             --branch "${BRANCH}" \
             --commit "${GITHUB_SHA}" \
             --env "git,github_actions" \
-            --token "${CODECOV_TOKEN}" \
             -n "gha-${GITHUB_SHA}" \
             -F unittests \
             -v \
