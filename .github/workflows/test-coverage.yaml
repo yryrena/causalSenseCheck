@@ -86,15 +86,17 @@ jobs:
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          # download official Codecov uploader
+          # download official Codecov uploader (linux amd64)
           curl -Os https://uploader.codecov.io/latest/linux/codecov
           chmod +x codecov
+          ls -l codecov
+          ./codecov --version
 
-          # derive slug (owner/repo), e.g. "yryrena/causalSenseCheck"
           SLUG="${GITHUB_REPOSITORY}"
           BRANCH="main"
 
-          # upload WITH token, but ALSO provide all metadata
+          echo "Uploading coverage for slug=${SLUG}, branch=${BRANCH}, commit=${GITHUB_SHA}"
+
           ./codecov \
             -f coverage.lcov \
             --slug "${SLUG}" \
@@ -104,4 +106,5 @@ jobs:
             --token "${CODECOV_TOKEN}" \
             -n "gha-${GITHUB_SHA}" \
             -F unittests \
-            -v
+            -v \
+            -Z
