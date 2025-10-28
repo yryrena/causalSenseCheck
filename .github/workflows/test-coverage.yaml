@@ -47,12 +47,13 @@ jobs:
             # keep only rows with real line numbers
             df <- df[!is.na(df$line), , drop = FALSE]
 
-            # helper: normalize file paths so Codecov can map them to repo files
+            # helper: normalize file paths so Codecov can map them to repo files 
             normalize_path_for_repo <- function(path_vec) { 
-              path_vec <- gsub("^.*causalSenseCheck/", "", path_vec)
-              path_vec <- gsub("^.*causalsensecheck/", "", path_vec)
-              tolower(path_vec)
+              path_vec <- gsub("(?i)^.*causalSenseCheck/", "", path_vec, perl = TRUE) 
+              path_vec <- gsub("(?i)^.*causalsensecheck/", "", path_vec, perl = TRUE) 
+              paste0("causalsensecheck/", path_vec)
             }
+
 
 
 
