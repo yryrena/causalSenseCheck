@@ -9,151 +9,65 @@ on:
 jobs:
   test-coverage:
     runs-on: ubuntu-latest
+
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repo
+        uses: actions/checkout@v4
 
-      - uses: r-lib/actions/setup-r@v2
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
         with:
           use-public-rspm: true
 
-      - uses: r-lib/actions/setup-pandoc@v2
+      - name: Setup pandoc
+        uses: r-lib/actions/setup-pandoc@v2
 
-      ## install dependencies (Imports + Suggests) AND covr
-      - name: Install dependencies
+      # install package deps (Imports + Suggests) and covr
+      - name: Install dependencies (incl. covr)
         uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::covr
+          extra-packages: |
+            any::covr
+            any::testthat
           needs: coverage
 
-      ## optional debug: confirm Suggests installed
-      - name: Debug installed packages
+      # sanity print: shows which heavy Suggests actually installed
+      - name: Session info (debug)
         run: |
-          Rscript -e 'print(sessionInfo()); pkgs <- c("grf","AER","fixest","ggplot2","rmarkdown"); print(pkgs); print(sapply(pkgs, requireNamespace, quietly=TRUE))'
+          Rscript -e 'print(sessionInfo());
+                      pkgs <- c("grf","AER","fixest","ggplot2","rmarkdown");
+                      print(pkgs);
+                      print(sapply(pkgs, requireNamespace, quietly=TRUE))'
 
-      ## run tests, compute coverage, and write LCOV report manually
-      - name: Run tests & compute coverage (generate lcov manually)
+      # run tests and upload coverage DIRECTLY with covr::codecov
+      - name: Run tests & upload to Codecov
         run: |
           Rscript -e '
-            # 1. run coverage on the package tests
-            cov <- covr::package_coverage(path = ".", type = "tests")
+            cov <- covr::package_coverage(type = "tests")
             print(cov)
 
-            # 2. convert to data.frame
-            df <- as.data.frame(cov)
-
-            # safety check
-            if (nrow(df) == 0) {
-              message("covr returned empty data.frame, writing minimal LCOV and exiting.")
-              writeLines("TN:\nend_of_record\n", "coverage.lcov")
-              quit(status = 0)
-            }
-
-            # ---- PATH NORMALIZATION ----
-            # We want paths like "R/fit.R", "R/placebo.R", etc.
-            # covr::as.data.frame() usually gives absolute paths like
-            #   /home/runner/work/causalSenseCheck/causalSenseCheck/R/fit.R
-            # We strip everything up to the repo root and keep the trailing "R/xxx.R".
-            normalize_path_for_repo <- function(path_vec) {
-              # remove everything before /R/...
-              sub(".*?/R/", "R/", path_vec)
-            }
-            df$filename_clean <- normalize_path_for_repo(df$filename)
-
-            # Now drop any rows that STILL dont map to R/*.R (vignettes, tests, etc)
-            df <- df[ grepl("^R/", df$filename_clean), , drop = FALSE ]
-
-            if (nrow(df) == 0) {
-              message("After restricting to R/ source files, no rows left. Writing minimal LCOV.")
-              writeLines("TN:\nend_of_record\n", "coverage.lcov")
-              quit(status = 0)
-            }
-
-            # ---- BUILD LCOV ----
-            write_lcov_df <- function(df, file = "coverage.lcov") {
-              con <- file(file, open = "wt")
-              on.exit(close(con), add = TRUE)
-
-              # split rows by cleaned filename
-              files <- split(df, df$filename_clean)
-
-              for (fn in names(files)) {
-                block <- files[[fn]]
-
-                # keep only rows with real numeric line numbers
-                block <- block[!is.na(block$line) & block$line > 0, , drop = FALSE]
-
-                if (nrow(block) == 0) {
-                  next
-                }
-
-                block$line  <- as.integer(block$line)
-                block$value <- as.integer(block$value)
-
-                # aggregate hits per unique line (take max hits per line)
-                max_hits_per_line <- tapply(block$value, block$line, max)
-
-                line_nums <- as.integer(names(max_hits_per_line))
-
-                # LF = how many coverable lines
-                LF <- length(line_nums)
-                # LH = how many of those lines had hits > 0
-                LH <- sum(max_hits_per_line > 0)
-
-                # start record
-                writeLines("TN:", con)
-                writeLines(paste0("SF:", fn), con)
-
-                # DA:<line>,<hits>
-                for (ln in sort(line_nums)) {
-                  hits <- max_hits_per_line[[as.character(ln)]]
-                  writeLines(paste0("DA:", ln, ",", hits), con)
-                }
-
-                # summary
-                writeLines(paste0("LF:", LF), con)
-                writeLines(paste0("LH:", LH), con)
-
-                # end
-                writeLines("end_of_record", con)
-              }
-            }
-
-            write_lcov_df(df, file = "coverage.lcov")
-
-            # final sanity check: show what we wrote
-            cat(\"\\n----- coverage.lcov preview -----\\n\")
-            cat(readLines(\"coverage.lcov\"), sep=\"\\n\")
+            # push to Codecov (classic path)
+            covr::codecov(
+              coverage = cov,
+              token = Sys.getenv("CODECOV_TOKEN"),
+              quiet = FALSE,
+              slug = "yryrena/causalSenseCheck"
+            )
           '
 
-
-
-      ## upload coverage.lcov to Codecov using their official uploader
-      - name: Upload coverage to Codecov
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+      # optional artifact for debugging if something breaks
+      - name: Save coverage object as artifact
+        if: always()
         run: |
-          curl -Os https://uploader.codecov.io/latest/linux/codecov
-          chmod +x codecov
-          ./codecov --version
-
-          SLUG="${GITHUB_REPOSITORY}"
-          BRANCH="main"
-
-          echo "Uploading coverage for slug=${SLUG}, branch=${BRANCH}, commit=${GITHUB_SHA} (token upload)"
-
-          ./codecov \
-            -f coverage.lcov \
-            --slug "${SLUG}" \
-            --branch "${BRANCH}" \
-            --commit "${GITHUB_SHA}" \
-            --env "git,github_actions" \
-            --token "${CODECOV_TOKEN}" \
-            -n "gha-${GITHUB_SHA}" \
-            -F unittests \
-            -v \
-            -Z
+          Rscript -e 'cov <- covr::package_coverage(type = "tests"); saveRDS(cov, file = "coverage_covr_object.rds")'
+        shell: bash
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-covr-object
+          path: coverage_covr_object.rds
